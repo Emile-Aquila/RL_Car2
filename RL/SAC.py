@@ -3,6 +3,10 @@ import torch
 from SAC_model import ActorNetwork2, CriticNetwork2
 from algo import Algorithm, ReplayBuffer
 from PIL import Image
+import gym_donkeycar
+from env import MyEnv
+import gym
+
 
 
 def show_state(state_np):
@@ -139,3 +143,13 @@ class SAC(Algorithm):
         self.optim_alpha.step()
 
 
+def main():
+    exe_path = f"/home/emile/.local/lib/python3.9/site-packages/gym_donkeycar/DonkeySimLinux/donkey_sim.x86_64"
+    conf = {"exe_path": exe_path, "port": 9091}
+    env = gym.make("donkey-generated-track-v0", conf=conf)
+    state = env.reset()
+    show_state(np.array(state))
+
+
+if __name__ == "__main__":
+    main()

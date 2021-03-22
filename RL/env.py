@@ -26,21 +26,28 @@ class MyEnv:
         self._state_frames = deque(maxlen=self._state_steps)  # 変換前のframe
         self._gen_id = 0  # 何回目のgenerateかを保持
         self._frames = []  # mp4生成用にframeを保存
+        self._step_repeat_times = 3
 
     def step(self, action, show=False):
-        n_state, rew, done, info = self.env.step(action)
-        self._state_frames.append(n_state)
-        if show:
-            self._frames.append(np.array(n_state))
-        n_state = self.convert_state()  # state 生成
-        rew = self.change_rew(rew, info)
+        rews = 0.0
+        for i in range(self._step_repeat_times):
+            n_state, rew, done, info = self.env.step(action)
+            rews += rew
+            if i == 0:
+                self._state_frames.append(n_state)
+            if show:
+                self._frames.append(np.array(n_state))
+            if done:
+                break
+        n_state_return = self.convert_state()  # state 生成
+        rew = self.change_rew(rews/self._step_repeat_times, info)
         if info["cte"] > 3.5:
             done = True
             rew = -1.0
         elif info["cte"] < -5.0:
             done = True
             rew = -1.0
-        return n_state, rew, done, info
+        return n_state_return, rew, done, info
 
     def change_rew(self, rew, info):
         if info["speed"] < 0.0:
