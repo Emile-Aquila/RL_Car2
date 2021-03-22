@@ -8,6 +8,7 @@ from time import time
 from datetime import timedelta
 from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 
 class Algorithm(ABC):
@@ -49,11 +50,11 @@ class ReplayBuffer:
         self.buffer_size = buffer_size  # リプレイバッファのサイズ．
 
         self.dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        self.states = torch.empty((buffer_size, 9, 80, 160), dtype=torch.float, device=self.dev)
+        self.states = torch.empty((buffer_size, 9, 80, 160), dtype=torch.float)
         self.actions = torch.empty((buffer_size, *action_shape), dtype=torch.float, device=self.dev)
-        self.rewards = torch.empty((buffer_size, 1), dtype=torch.float, device=self.dev)
-        self.dones = torch.empty((buffer_size, 1), dtype=torch.float, device=self.dev)
-        self.next_states = torch.empty((buffer_size, 9, 80, 160), dtype=torch.float, device=self.dev)
+        self.rewards = torch.empty((buffer_size, 1), dtype=torch.float)
+        self.dones = torch.empty((buffer_size, 1), dtype=torch.float)
+        self.next_states = torch.empty((buffer_size, 9, 80, 160), dtype=torch.float)
 
     def append(self, state, action, reward, done, next_state):
         stat = torch.from_numpy(state)
@@ -110,7 +111,7 @@ class Trainer:
 
         t = 0  # エピソードのステップ数．
         state = self.env.reset()  # 環境を初期化する．
-        for steps in range(1, self.num_steps + 1):
+        for steps in tqdm(range(1, self.num_steps + 1)):
             # 環境(self.env)，現在の状態(state)，現在のエピソードのステップ数(t)，今までのトータルのステップ数(steps)を
             # アルゴリズムに渡し，状態・エピソードのステップ数を更新する．
             state, t = self.algo.step(self.env, state, t, steps)
@@ -119,6 +120,12 @@ class Trainer:
                 writer.add_scalar("actor loss", l_a1, steps)
                 writer.add_scalar("critic loss1", l_c1, steps)
                 writer.add_scalar("critic loss2", l_c2, steps)
+                torch.save(self.algo.actor.cpu().state_dict(), './actor.pth')
+                self.algo.actor.to(dev)
+                torch.save(self.algo.critic.cpu().state_dict(), './critic.pth')
+                self.algo.critic.to(dev)
+                torch.save(self.algo.critic_target.cpu().state_dict(), './c_target.pth')
+                self.algo.critic_target.to(dev)
             if steps % self.eval_interval == 0:  # 一定のインターバルで評価する．
                 # print("evaluate")
                 rew_ave = self.evaluate(steps)

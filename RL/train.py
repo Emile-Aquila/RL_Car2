@@ -17,7 +17,7 @@ env = MyEnv(env)
 SEED = 0
 REWARD_SCALE = 1.0
 # NUM_STEPS = 5 * 10 ** 4
-NUM_STEPS = 5 * 10 ** 7
+NUM_STEPS = 3 * 10 ** 6
 # NUM_STEPS = 10**2
 EVAL_INTERVAL = 1 * 10 ** 4
 
