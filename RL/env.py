@@ -34,7 +34,7 @@ class MyEnv:
             n_state, rew, done, info = self.env.step(action)
             rews += rew
             if i == 0:
-                self._state_frames.append(n_state)
+                self._state_frames.append(self.adjust_picture(n_state))
             if show:
                 self._frames.append(np.array(n_state))
             if done:
@@ -61,12 +61,14 @@ class MyEnv:
         return rew
 
     def reset(self):
-        rand_step = random.randrange(20)
+        rand_step = random.randrange(10)
         self.env.reset()
         for _ in range(rand_step + self._state_steps):
             action = self.env.action_space.sample()
-            n_state, _, _, _ = self.env.step(action)
-            self._state_frames.append(n_state)
+            for i in range(self._step_repeat_times):
+                n_state, _, _, _ = self.env.step(action)
+                if i == 0:
+                    self._state_frames.append(self.adjust_picture(n_state))
         # state = self.convert_state_vae(state)
         state = self.convert_state()
         return state
@@ -74,22 +76,30 @@ class MyEnv:
     def seed(self, seed_):
         self.env.seed(seed_)
 
+    def adjust_picture(self, pict):
+        ans = pict[40:120, 0:160, :]
+        ans = Image.fromarray(ans, "RGB").convert("L").point(lambda x: 0 if x < 190 else x)
+        ans = np.array(ans, dtype=np.float32) / 255.0
+        ans = ans.reshape((1, 80, 160))
+        return ans
+
     def convert_state(self):
         state_pre = []
         for state in self._state_frames:
-            state_ = Image.fromarray(state, "RGB").convert("L").point(lambda x: 0 if x < 190 else x)
-            frame = np.array(state_, dtype=np.float32) / 255.0
-            frame.resize(160, 120, 1)
-            # state_pre.append(np.array(state / 255.0))
-            # print("f shape {}".format(frame.shape))
-            state_pre.append(frame)
-        state_pre = np.concatenate(state_pre, 2)
-        # print("state_pre {}".format(state_pre.shape))
-        state_ = np.array(state_pre).reshape((160, 120, 3))
-        state_ = state_[0:160, 40:120, :].reshape((3, 80, 160))
-        # print("state shape {}".format(state_.shape))
-        # state_ = torch.from_numpy(state_).permute(0, 3, 1, 2).float().to(self.dev)
-        return state_
+            # state_ = Image.fromarray(state, "RGB").convert("L").point(lambda x: 0 if x < 190 else x)
+            # frame = np.array(state_, dtype=np.float32) / 255.0
+            # frame.resize(160, 120, 1)
+            # # state_pre.append(np.array(state / 255.0))
+            # # print("f shape {}".format(frame.shape))
+            state_pre.append(state)
+        # state_pre = np.concatenate(state_pre, 2)
+        state = np.concatenate(state_pre, 0)
+        # # print("state_pre {}".format(state_pre.shape))
+        # state_ = np.array(state_pre).reshape((160, 120, 3))
+        # state_ = state_[0:160, 40:120, :].reshape((3, 80, 160))
+        # # print("state shape {}".format(state_.shape))
+        # # state_ = torch.from_numpy(state_).permute(0, 3, 1, 2).float().to(self.dev)
+        return state
 
     def generate_mp4(self):
         # for mp4
