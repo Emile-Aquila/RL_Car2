@@ -121,6 +121,10 @@ class SAC(Algorithm):
     def update(self):
         self.learning_steps += 1
         states, actions, rews, dones, n_states = self.buffer.sample(self.batch_size)
+        states = states.to(self.dev)
+        rews = rews.to(self.dev)
+        dones = dones.to(self.dev)
+        n_states = n_states.to(self.dev)
         l_c1, l_c2 = self.update_critic(states, actions, rews, dones, n_states)
         l_a1 = self.update_actor(states)
         self.update_target()

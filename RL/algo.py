@@ -120,16 +120,16 @@ class Trainer:
                 writer.add_scalar("actor loss", l_a1, steps)
                 writer.add_scalar("critic loss1", l_c1, steps)
                 writer.add_scalar("critic loss2", l_c2, steps)
+            if steps % self.eval_interval == 0:  # 一定のインターバルで評価する．
+                # print("evaluate")
+                rew_ave = self.evaluate(steps)
+                writer.add_scalar("evaluate rew", rew_ave, steps)
                 torch.save(self.algo.actor.cpu().state_dict(), './actor.pth')
                 self.algo.actor.to(dev)
                 torch.save(self.algo.critic.cpu().state_dict(), './critic.pth')
                 self.algo.critic.to(dev)
                 torch.save(self.algo.critic_target.cpu().state_dict(), './c_target.pth')
                 self.algo.critic_target.to(dev)
-            if steps % self.eval_interval == 0:  # 一定のインターバルで評価する．
-                # print("evaluate")
-                rew_ave = self.evaluate(steps)
-                writer.add_scalar("evaluate rew", rew_ave, steps)
         writer.close()
 
     def evaluate(self, steps):  # 複数エピソード環境を動かし，平均収益を記録する．

@@ -19,7 +19,7 @@ class Flatten(nn.Module):
 class CriticNetwork2(nn.Module):
     def __init__(self):
         super().__init__()
-        num = 256
+        num = 64
         self.net1 = nn.Sequential(
             nn.Conv2d(3 * 3, num, 4, stride=2),
             nn.ReLU(inplace=True),
@@ -75,7 +75,7 @@ class CriticNetwork2(nn.Module):
 class ActorNetwork2(nn.Module):
     def __init__(self):
         super().__init__()
-        num = 256
+        num = 64
         self.net = nn.Sequential(
             nn.Conv2d(3 * 3, num, 4, stride=2),
             nn.ReLU(inplace=True),
