@@ -77,11 +77,16 @@ class MyEnv:
     def convert_state(self):
         state_pre = []
         for state in self._state_frames:
-            state_pre.append(np.array(state / 255.0))
+            state_ = Image.fromarray(state, "RGB").convert("L").point(lambda x: 0 if x < 190 else x)
+            frame = np.array(state_, dtype=np.float32) / 255.0
+            frame.resize(160, 120, 1)
+            # state_pre.append(np.array(state / 255.0))
+            # print("f shape {}".format(frame.shape))
+            state_pre.append(frame)
         state_pre = np.concatenate(state_pre, 2)
         # print("state_pre {}".format(state_pre.shape))
-        state_ = np.array(state_pre).reshape((160, 120, 9))
-        state_ = state_[0:160, 40:120, :].reshape((9, 80, 160))
+        state_ = np.array(state_pre).reshape((160, 120, 3))
+        state_ = state_[0:160, 40:120, :].reshape((3, 80, 160))
         # print("state shape {}".format(state_.shape))
         # state_ = torch.from_numpy(state_).permute(0, 3, 1, 2).float().to(self.dev)
         return state_

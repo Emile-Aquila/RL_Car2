@@ -27,7 +27,7 @@ class CriticNetwork2(nn.Module):
         super().__init__()
         num = 64
         self.net1 = nn.Sequential(
-            nn.Conv2d(3 * 3, num, 4, stride=2),
+            nn.Conv2d(3, num, 4, stride=2),
             nn.ReLU(inplace=True),
             nn.Conv2d(num, 64, 4, stride=2),
             nn.ReLU(inplace=True),
@@ -40,7 +40,7 @@ class CriticNetwork2(nn.Module):
             # nn.Linear(64, 2 * 2),
         )
         self.net1_2 = nn.Sequential(
-            nn.Conv2d(3 * 3, num, 4, stride=2),
+            nn.Conv2d(3, num, 4, stride=2),
             nn.ReLU(inplace=True),
             nn.Conv2d(num, 64, 4, stride=2),
             nn.ReLU(inplace=True),
@@ -89,7 +89,7 @@ class ActorNetwork2(nn.Module):
         super().__init__()
         num = 64
         self.net = nn.Sequential(
-            nn.Conv2d(3 * 3, num, 4, stride=2),
+            nn.Conv2d(3, num, 4, stride=2),
             nn.ReLU(inplace=True),
             nn.Conv2d(num, 64, 4, stride=2),
             nn.ReLU(inplace=True),
