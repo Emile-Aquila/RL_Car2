@@ -5,6 +5,7 @@ import gym_donkeycar
 from env import MyEnv
 import gym
 
+
 # exe_path = f"/home/emile/.local/lib/python3.9/site-packages/gym_donkeycar/DonkeySimLinux/donkey_sim.x86_64"
 # conf = {"exe_path": exe_path, "port": 9091}
 # env = gym.make("donkey-generated-track-v0", conf=conf)
@@ -14,6 +15,11 @@ import gym
 class Flatten(nn.Module):
     def forward(self, inputs):
         return inputs.contiguous().view(inputs.size(0), -1)
+
+
+def init_weights(m):
+    if (type(m) is nn.Conv2d) or (type(m) is nn.Linear):
+        nn.init.kaiming_normal_(m.weight)
 
 
 class CriticNetwork2(nn.Module):
@@ -62,6 +68,12 @@ class CriticNetwork2(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(64, 1),
         )
+        self.net1.apply(init_weights)
+        self.net1_2.apply(init_weights)
+        self.net2.apply(init_weights)
+        self.net2_2.apply(init_weights)
+        self.net3.apply(init_weights)
+        self.net3_2.apply(init_weights)
 
     def forward(self, states, acts):
         s1, s2 = self.net1(states), self.net1_2(states)
@@ -90,6 +102,7 @@ class ActorNetwork2(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(64, 2 * 2),
         )
+        self.net.apply(init_weights)
 
     def forward(self, states):
         # print(states.shape)
@@ -159,7 +172,6 @@ class CriticNetwork(nn.Module):
     def forward(self, states, actions):
         inputs = torch.cat((states, actions), dim=-1)
         return self.net1(inputs), self.net2(inputs)
-
 
 # def main():
 #     test = ActorNetwork2()
