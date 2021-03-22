@@ -6,6 +6,8 @@ from PIL import Image
 import cv2
 import os
 import shutil
+from collections import deque
+import random
 
 
 class MyEnv:
@@ -13,21 +15,24 @@ class MyEnv:
         self.env = env_
         self.dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.action_space = env_.action_space
-        # self.observation_space = (1, 32)
-
+        self.observation_space = (80, 160, 9)
+        print("obs shape {}".format(self.observation_space))
+        self._state_steps = 3
         # vae
-        self.vae = VAE()
-        model_path = "./vae/vae.pth"
-        self.vae.load_state_dict(torch.load(model_path))
-        self.vae.to(self.dev)
+        # self.vae = VAE()
+        # model_path = "./vae/vae.pth"
+        # self.vae.load_state_dict(torch.load(model_path))
+        # self.vae.to(self.dev)
+        self._state_frames = deque(maxlen=self._state_steps)  # 変換前のframe
         self._gen_id = 0  # 何回目のgenerateかを保持
         self._frames = []  # mp4生成用にframeを保存
 
     def step(self, action, show=False):
         n_state, rew, done, info = self.env.step(action)
+        self._state_frames.append(n_state)
         if show:
             self._frames.append(np.array(n_state))
-        n_state = self.convert_state_vae(n_state)
+        n_state = self.convert_state()  # state 生成
         rew = self.change_rew(rew, info)
         if info["cte"] > 3.5:
             done = True
@@ -49,27 +54,29 @@ class MyEnv:
         return rew
 
     def reset(self):
-        state = self.env.reset()
-        state = self.convert_state_vae(state)
+        rand_step = random.randrange(20)
+        self.env.reset()
+        for _ in range(rand_step + self._state_steps):
+            action = self.env.action_space.sample()
+            n_state, _, _, _ = self.env.step(action)
+            self._state_frames.append(n_state)
+        # state = self.convert_state_vae(state)
+        state = self.convert_state()
         return state
 
     def seed(self, seed_):
         self.env.seed(seed_)
 
-    def convert_state_to_tensor(self, state):  # state(array) -> np.array -> convert some -> tensor
-        state_ = np.array(state).reshape((160, 120, 3))
-        # print("state_ shape {}".format(state1.shape))
-        state_ = state_[0:160, 40:120, :].reshape((1, 80, 160, 3))
+    def convert_state(self):
+        state_pre = []
+        for state in self._state_frames:
+            state_pre.append(np.array(state / 255.0))
+        state_pre = np.concatenate(state_pre, 2)
+        # print("state_pre {}".format(state_pre.shape))
+        state_ = np.array(state_pre).reshape((160, 120, 9))
+        state_ = state_[0:160, 40:120, :].reshape((9, 80, 160))
         # print("state shape {}".format(state_.shape))
-        # state_ = state_.reshape((1, 80, 160, 3))
-        state_ = torch.from_numpy(state_).permute(0, 3, 1, 2).float().to(self.dev)
-        state_ /= 255.0
-        return state_
-
-    def convert_state_vae(self, state):
-        state_ = self.convert_state_to_tensor(state)
-        state_, _, _ = self.vae.encode(state_)
-        state_ = state_.clone().detach().cpu().numpy()[0]
+        # state_ = torch.from_numpy(state_).permute(0, 3, 1, 2).float().to(self.dev)
         return state_
 
     def generate_mp4(self):
@@ -97,5 +104,3 @@ class MyEnv:
         shutil.rmtree("./tmp")
         self._frames.clear()
         self._gen_id += 1
-
-

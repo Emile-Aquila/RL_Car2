@@ -1,6 +1,111 @@
 import torch
 import torch.nn as nn
 from algo import reparameterize
+import gym_donkeycar
+from env import MyEnv
+import gym
+
+# exe_path = f"/home/emile/.local/lib/python3.9/site-packages/gym_donkeycar/DonkeySimLinux/donkey_sim.x86_64"
+# conf = {"exe_path": exe_path, "port": 9091}
+# env = gym.make("donkey-generated-track-v0", conf=conf)
+# env = MyEnv(env)
+
+
+class Flatten(nn.Module):
+    def forward(self, inputs):
+        return inputs.contiguous().view(inputs.size(0), -1)
+
+
+class CriticNetwork2(nn.Module):
+    def __init__(self):
+        super().__init__()
+        num = 256
+        self.net1 = nn.Sequential(
+            nn.Conv2d(3 * 3, num, 4, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(num, 64, 4, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 32, 4, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 8, 4, stride=2),
+            nn.ReLU(inplace=True),
+            Flatten(),  # torch.Size([1, 192])
+            nn.Linear(192, 64),  # torch.Size([1, 64])
+            # nn.Linear(64, 2 * 2),
+        )
+        self.net1_2 = nn.Sequential(
+            nn.Conv2d(3 * 3, num, 4, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(num, 64, 4, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 32, 4, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 8, 4, stride=2),
+            nn.ReLU(inplace=True),
+            Flatten(),  # torch.Size([1, 192])
+            nn.Linear(192, 64),  # torch.Size([1, 64])
+            # nn.Linear(64, 2 * 2),
+        )
+        self.net2 = nn.Sequential(
+            nn.Linear(2, 64)
+        )
+        self.net2_2 = nn.Sequential(
+            nn.Linear(2, 64)
+        )
+        self.net3 = nn.Sequential(
+            nn.Linear(64 * 2, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, 1),
+        )
+        self.net3_2 = nn.Sequential(
+            nn.Linear(64 * 2, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, 1),
+        )
+
+    def forward(self, states, acts):
+        s1, s2 = self.net1(states), self.net1_2(states)
+        a1, a2 = self.net2(acts), self.net2_2(acts)
+        t1 = torch.cat((s1, a1), dim=-1)
+        t2 = torch.cat((s2, a2), dim=-1)
+        out1, out2 = self.net3(t1), self.net3_2(t2)
+        return out1, out2
+
+
+class ActorNetwork2(nn.Module):
+    def __init__(self):
+        super().__init__()
+        num = 256
+        self.net = nn.Sequential(
+            nn.Conv2d(3 * 3, num, 4, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(num, 64, 4, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 32, 4, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 8, 4, stride=2),
+            nn.ReLU(inplace=True),
+            Flatten(),  # torch.Size([1, 192])
+            nn.Linear(192, 64),  # torch.Size([1, 64])
+            nn.ReLU(inplace=True),
+            nn.Linear(64, 2 * 2),
+        )
+
+    def forward(self, states):
+        # print(states.shape)
+        # print("net {}".format(self.net(states).shape))
+        means, log_stds = self.net(states).chunk(2, dim=-1)
+        # print("m,l {}, {}".format(means.shape, log_stds.shape))
+        return means, log_stds
+
+    def sample(self, inputs, deterministic=False):
+        #  select action from inputs
+        means, log_stds = self.forward(inputs)
+        if deterministic:
+            return torch.tanh(means)
+        else:
+            log_stds = torch.clip(log_stds, -20.0, 2.0)
+            return reparameterize(means, log_stds)
 
 
 class ActorNetwork(nn.Module):
@@ -9,7 +114,7 @@ class ActorNetwork(nn.Module):
         num = 256
         self.net = nn.Sequential(
             # nn.Linear(state_shape[0], num),
-            nn.Linear(state_shape, num),
+            # nn.Linear(state_shape[0], num),
             nn.ReLU(inplace=True),
             nn.Linear(num, num),
             nn.ReLU(inplace=True),
@@ -36,14 +141,15 @@ class CriticNetwork(nn.Module):
         super().__init__()
         num = 256
         self.net1 = nn.Sequential(
-            nn.Linear(state_shape + action_shape[0], num),
+            nn.Linear(action_shape, num),
+            # nn.Linear(state_shape + action_shape[0], num),
             nn.ReLU(inplace=True),
             nn.Linear(num, num),
             nn.ReLU(inplace=True),
             nn.Linear(num, 1),
         )
         self.net2 = nn.Sequential(
-            nn.Linear(state_shape + action_shape[0], num),
+            # nn.Linear(state_shape + action_shape[0], num),
             nn.ReLU(inplace=True),
             nn.Linear(num, num),
             nn.ReLU(inplace=True),
@@ -53,3 +159,18 @@ class CriticNetwork(nn.Module):
     def forward(self, states, actions):
         inputs = torch.cat((states, actions), dim=-1)
         return self.net1(inputs), self.net2(inputs)
+
+
+# def main():
+#     test = ActorNetwork2()
+#     stat = env.reset()
+#     stat = torch.Tensor(stat).permute(0, 3, 1, 2)
+#     act = torch.zeros((1, 2))
+#     test.forward(stat)
+#     test2 = CriticNetwork2()
+#     ans = test2.forward(stat, act)
+#     print("ans {}".format(ans))
+#
+#
+# if __name__ == "__main__":
+#     main()
