@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from SAC_model import ActorNetwork2, CriticNetwork2
+from SAC_model import ActorNetwork, CriticNetwork
 from algo import Algorithm, ReplayBuffer
 from PIL import Image
 import gym_donkeycar
@@ -39,12 +39,12 @@ class SAC(Algorithm):
         )
         # self.actor = ActorNetwork(state_shape, action_shape).to(self.dev)
         # self.critic = CriticNetwork(state_shape, action_shape).to(self.dev)
-        self.actor = ActorNetwork2().to(self.dev)
-        self.critic = CriticNetwork2().to(self.dev)
+        self.actor = ActorNetwork(state_shape, action_shape).to(self.dev)
+        self.critic = CriticNetwork(state_shape, action_shape).to(self.dev)
 
     # Target Network を用いて学習を安定化させる.
     #     self.critic_target = CriticNetwork(state_shape, action_shape).to(self.dev).eval()
-        self.critic_target = CriticNetwork2().to(self.dev).eval()
+        self.critic_target = CriticNetwork(state_shape, action_shape).to(self.dev).eval()
 
     # adjust entropy(\alpha)
         self.min_alpha = torch.tensor(min_alpha)

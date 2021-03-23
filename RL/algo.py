@@ -50,11 +50,11 @@ class ReplayBuffer:
         self.buffer_size = buffer_size  # リプレイバッファのサイズ．
 
         self.dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        self.states = torch.empty((buffer_size, 3, 80, 160), dtype=torch.float)
+        self.states = torch.empty((buffer_size, state_shape), dtype=torch.float, device=self.dev)
         self.actions = torch.empty((buffer_size, *action_shape), dtype=torch.float, device=self.dev)
-        self.rewards = torch.empty((buffer_size, 1), dtype=torch.float)
-        self.dones = torch.empty((buffer_size, 1), dtype=torch.float)
-        self.next_states = torch.empty((buffer_size, 3, 80, 160), dtype=torch.float)
+        self.rewards = torch.empty((buffer_size, 1), dtype=torch.float, device=self.dev)
+        self.dones = torch.empty((buffer_size, 1), dtype=torch.float, device=self.dev)
+        self.next_states = torch.empty((buffer_size, state_shape), dtype=torch.float, device=self.dev)
 
     def append(self, state, action, reward, done, next_state):
         stat = torch.from_numpy(state)
@@ -76,6 +76,7 @@ class ReplayBuffer:
             self.dones[indexes],
             self.next_states[indexes]
         )
+
 
 
 # def wrap_monitor(env):
@@ -105,8 +106,8 @@ class Trainer:
         self.start_time = time()  # 学習開始の時間
         writer = SummaryWriter(log_dir="./logs")
         dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        writer.add_graph(self.algo.actor, torch.from_numpy(np.zeros(shape=(1, 3, 80, 160))).float().to(dev))
-        writer.add_graph(self.algo.critic, (torch.from_numpy(np.zeros(shape=(1, 3, 80, 160))).float().to(dev),
+        writer.add_graph(self.algo.actor, torch.from_numpy(np.zeros(shape=(1, 96))).float().to(dev))
+        writer.add_graph(self.algo.critic, (torch.from_numpy(np.zeros(shape=(1, 96))).float().to(dev),
                          torch.from_numpy(np.zeros(shape=(1, 2))).float().to(dev)))
 
         t = 0  # エピソードのステップ数．

@@ -119,58 +119,62 @@ class ActorNetwork2(nn.Module):
             log_stds = torch.clip(log_stds, -20.0, 2.0)
             return reparameterize(means, log_stds)
 
-#
-# class ActorNetwork(nn.Module):
-#     def __init__(self, state_shape, action_shape):
-#         super().__init__()
-#         num = 256
-#         self.net = nn.Sequential(
-#             # nn.Linear(state_shape[0], num),
-#             # nn.Linear(state_shape[0], num),
-#             nn.ReLU(inplace=True),
-#             nn.Linear(num, num),
-#             nn.ReLU(inplace=True),
-#             nn.Linear(num, 2 * action_shape[0]),
-#         )
-#
-#     def forward(self, inputs):
-#         # calc means and log_stds
-#         means, log_stds = self.net(inputs).chunk(2, dim=-1)
-#         return means, log_stds
-#
-#     def sample(self, inputs, deterministic=False):
-#         #  select action from inputs
-#         means, log_stds = self.forward(inputs)
-#         if deterministic:
-#             return torch.tanh(means)
-#         else:
-#             log_stds = torch.clip(log_stds, -20.0, 2.0)
-#             return reparameterize(means, log_stds)
-#
-#
-# class CriticNetwork(nn.Module):
-#     def __init__(self, state_shape, action_shape):
-#         super().__init__()
-#         num = 256
-#         self.net1 = nn.Sequential(
-#             nn.Linear(action_shape, num),
-#             # nn.Linear(state_shape + action_shape[0], num),
-#             nn.ReLU(inplace=True),
-#             nn.Linear(num, num),
-#             nn.ReLU(inplace=True),
-#             nn.Linear(num, 1),
-#         )
-#         self.net2 = nn.Sequential(
-#             # nn.Linear(state_shape + action_shape[0], num),
-#             nn.ReLU(inplace=True),
-#             nn.Linear(num, num),
-#             nn.ReLU(inplace=True),
-#             nn.Linear(num, 1),
-#         )
-#
-#     def forward(self, states, actions):
-#         inputs = torch.cat((states, actions), dim=-1)
-#         return self.net1(inputs), self.net2(inputs)
+class ActorNetwork(nn.Module):
+    def __init__(self, state_shape, action_shape):
+        super().__init__()
+        num = 256
+        self.net = nn.Sequential(
+            # nn.Linear(state_shape[0], num),
+            nn.Linear(state_shape, num),
+            nn.ReLU(inplace=True),
+            nn.Linear(num, num),
+            nn.ReLU(inplace=True),
+            nn.Linear(num, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, 2 * action_shape[0]),
+        )
+
+    def forward(self, inputs):
+        # calc means and log_stds
+        means, log_stds = self.net(inputs).chunk(2, dim=-1)
+        return means, log_stds
+
+    def sample(self, inputs, deterministic=False):
+        #  select action from inputs
+        means, log_stds = self.forward(inputs)
+        if deterministic:
+            return torch.tanh(means)
+        else:
+            log_stds = torch.clip(log_stds, -20.0, 2.0)
+            return reparameterize(means, log_stds)
+
+
+class CriticNetwork(nn.Module):
+    def __init__(self, state_shape, action_shape):
+        super().__init__()
+        num = 256
+        self.net1 = nn.Sequential(
+            nn.Linear(state_shape + action_shape[0], num),
+            nn.ReLU(inplace=True),
+            nn.Linear(num, num),
+            nn.ReLU(inplace=True),
+            nn.Linear(num, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, 1),
+        )
+        self.net2 = nn.Sequential(
+            nn.Linear(state_shape + action_shape[0], num),
+            nn.ReLU(inplace=True),
+            nn.Linear(num, num),
+            nn.ReLU(inplace=True),
+            nn.Linear(num, 64),
+            nn.ReLU(inplace=True),
+            nn.Linear(64, 1),
+        )
+
+    def forward(self, states, actions):
+        inputs = torch.cat((states, actions), dim=-1)
+        return self.net1(inputs), self.net2(inputs)
 
 def main():
     exe_path = f"/home/emile/.local/lib/python3.9/site-packages/gym_donkeycar/DonkeySimLinux/donkey_sim.x86_64"

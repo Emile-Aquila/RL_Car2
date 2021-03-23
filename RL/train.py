@@ -25,7 +25,7 @@ print("state shape {}".format(*env.observation_space))
 print("action shape {}".format(env.action_space.shape))
 
 algo = SAC(
-    state_shape=env.observation_space,
+    state_shape=96,
     # state_shape=32,
     action_shape=env.action_space.shape,
     seed=SEED,

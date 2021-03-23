@@ -19,18 +19,20 @@ class MyEnv:
         self.observation_space = (80, 160, 9)
         print("obs shape {}".format(self.observation_space))
         self._state_steps = 3
-        self.detectColor = detectColor()
-        # self.num_envs = self.env.num_envs
+        # self.detectColor = detectColor()
         # vae
-        # self.vae = VAE()
-        # model_path = "./vae/vae.pth"
-        # self.vae.load_state_dict(torch.load(model_path))
-        # self.vae.to(self.dev)
+        self.vae = VAE()
+        model_path = "./vae/vae.pth"
+        self.vae.load_state_dict(torch.load(model_path))
+        self.vae.to(self.dev)
+        self._gen_id = 0  # 何回目のgenerateかを保持
+        self._frames = []  # mp4生成用にframeを保存
+        # pre processing
         self._state_frames = deque(maxlen=self._state_steps)  # 変換前のframe
         self._gen_id = 0  # 何回目のgenerateかを保持
         self._frames = []  # mp4生成用にframeを保存
         self._step_repeat_times = 3
-        self.num_envs = 1
+        # self.num_envs = 1
 
     def close(self):
         self.env.close()
@@ -84,31 +86,36 @@ class MyEnv:
         self.env.seed(seed_)
 
     def adjust_picture(self, pict):
-        pict = self.detectColor.getImg(pict)
-        print("pict shape {}".format(pict.shape))
-        ans = pict[40:120, 0:160]
-        # ans = Image.fromarray(ans, "RGB").convert("L").point(lambda x: 0 if x < 190 else x)
-        ans = np.array(ans, dtype=np.float32) / 255.0
-        ans = ans.reshape((1, 80, 160))
-        return ans
+        # pict = self.detectColor.getImg(pict)
+        # print("pict shape {}".format(pict.shape))
+        # ans = pict[40:120, 0:160]
+        # # ans = Image.fromarray(ans, "RGB").convert("L").point(lambda x: 0 if x < 190 else x)
+        # ans = np.array(ans, dtype=np.float32) / 255.0
+        # ans = ans.reshape((1, 80, 160))
+        vae_state = self.convert_state_vae(pict)
+        return vae_state
 
     def convert_state(self):
         state_pre = []
         for state in self._state_frames:
-            # state_ = Image.fromarray(state, "RGB").convert("L").point(lambda x: 0 if x < 190 else x)
-            # frame = np.array(state_, dtype=np.float32) / 255.0
-            # frame.resize(160, 120, 1)
-            # # state_pre.append(np.array(state / 255.0))
-            # # print("f shape {}".format(frame.shape))
             state_pre.append(state)
-        # state_pre = np.concatenate(state_pre, 2)
         state = np.concatenate(state_pre, 0)
-        # # print("state_pre {}".format(state_pre.shape))
-        # state_ = np.array(state_pre).reshape((160, 120, 3))
-        # state_ = state_[0:160, 40:120, :].reshape((3, 80, 160))
-        # # print("state shape {}".format(state_.shape))
-        # # state_ = torch.from_numpy(state_).permute(0, 3, 1, 2).float().to(self.dev)
+        # print("state shape {}".format(state.shape))
+        # print("state shape {}".format(state_pre))
         return state
+
+    def convert_state_to_tensor(self, state):  # state(array) -> np.array -> convert some -> tensor
+        state_ = np.array(state).reshape((160, 120, 3))
+        state_ = state_[0:160, 40:120, :].reshape((1, 80, 160, 3))
+        state_ = torch.from_numpy(state_).permute(0, 3, 1, 2).float().to(self.dev)
+        state_ /= 255.0
+        return state_
+
+    def convert_state_vae(self, state):
+        state_ = self.convert_state_to_tensor(state)
+        state_, _, _ = self.vae.encode(state_)
+        state_ = state_.clone().detach().cpu().numpy()[0]
+        return state_
 
     def generate_mp4(self):
         # for mp4
