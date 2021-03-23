@@ -17,7 +17,7 @@ class MyEnv:
         self.dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.action_space = env_.action_space
         self.observation_space = (80, 160, 9)
-        print("obs shape {}".format(self.observation_space))
+        # print("obs shape {}".format(self.observation_space))
         self._state_steps = 3
         self.detectColor = detectColor()
         # self.num_envs = self.env.num_envs
