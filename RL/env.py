@@ -7,6 +7,7 @@ import cv2
 import os
 import shutil
 from collections import deque
+from change_pict import detectColor
 import random
 
 
@@ -18,6 +19,8 @@ class MyEnv:
         self.observation_space = (80, 160, 9)
         print("obs shape {}".format(self.observation_space))
         self._state_steps = 3
+        self.detectColor = detectColor()
+        # self.num_envs = self.env.num_envs
         # vae
         # self.vae = VAE()
         # model_path = "./vae/vae.pth"
@@ -27,6 +30,10 @@ class MyEnv:
         self._gen_id = 0  # 何回目のgenerateかを保持
         self._frames = []  # mp4生成用にframeを保存
         self._step_repeat_times = 3
+        self.num_envs = 1
+
+    def close(self):
+        self.env.close()
 
     def step(self, action, show=False):
         rews = 0.0
@@ -77,8 +84,10 @@ class MyEnv:
         self.env.seed(seed_)
 
     def adjust_picture(self, pict):
-        ans = pict[40:120, 0:160, :]
-        ans = Image.fromarray(ans, "RGB").convert("L").point(lambda x: 0 if x < 190 else x)
+        pict = self.detectColor.getImg(pict)
+        print("pict shape {}".format(pict.shape))
+        ans = pict[40:120, 0:160]
+        # ans = Image.fromarray(ans, "RGB").convert("L").point(lambda x: 0 if x < 190 else x)
         ans = np.array(ans, dtype=np.float32) / 255.0
         ans = ans.reshape((1, 80, 160))
         return ans

@@ -1,0 +1,1 @@
+steps	episodes	elapsed	mean	median	stdev	max	min	average_q1	average_q2	average_q_func1_loss	average_q_func2_loss	n_updates	average_entropy	temperature

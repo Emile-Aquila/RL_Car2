@@ -10,8 +10,10 @@ import gym
 
 
 def show_state(state_np):
-    state_np_ = state_np[40:120, 0:160, :]
-    img = Image.fromarray(state_np_, "RGB").convert("L").point(lambda x: 0 if x < 190 else x)
+    # state_np_ = state_np[40:120, 0:160, :]
+    state_np_ = state_np
+    img = Image.fromarray(state_np_, "RGB").convert("L")
+    # img = Image.fromarray(state_np_, "RGB").convert("L").point(lambda x: 0 if x < 190 else x)
     print(img)
     frame = np.array(img, dtype=np.float32)
     print(frame.shape)
