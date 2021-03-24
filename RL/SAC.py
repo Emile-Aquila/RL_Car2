@@ -74,18 +74,12 @@ class SAC(Algorithm):
         t += 1
         if steps <= self.start_steps:  # 最初はランダム.
             action = env.action_space.sample()
-            # print("action {}".format(action))
         else:
             action, _ = self.explore(state)
         n_state, rew, done, info = env.step(action)
         self.total_rew += rew
-        # print("rew is {}".format(rew))
-        # print("info is {}".format(info["cte"]))
-        # # done_masked = False if t == env._max_episode_steps else done  # 最大ステップ数に到達してdone=Trueになった場合を補正する.
-        # # self.buffer.append(state, action, rew, done_masked, n_state)  # add data to buffer
         self.buffer.append(state, action, rew, done, n_state)  # add data to buffer
         if done:  # エピソードが終了した場合には，環境をリセットする．
-            # print("total rew is {}".format(self.total_rew))
             t = 0
             n_state = env.reset()
             self.total_rew = 0.0
