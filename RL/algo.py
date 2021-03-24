@@ -9,6 +9,8 @@ from datetime import timedelta
 from PIL import Image
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+from pfrl import replay_buffers
+
 
 
 class Algorithm(ABC):
@@ -48,7 +50,7 @@ class ReplayBuffer:
         self._idx = 0  # 次にデータを挿入するインデックス．
         self._size = 0  # データ数．
         self.buffer_size = buffer_size  # リプレイバッファのサイズ．
-
+        self.buf = replay_buffers.PrioritizedReplayBuffer(capacity=self.buffer_size)
         self.dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.states = torch.empty((buffer_size, state_shape), dtype=torch.float, device=self.dev)
         self.actions = torch.empty((buffer_size, *action_shape), dtype=torch.float, device=self.dev)
@@ -56,26 +58,49 @@ class ReplayBuffer:
         self.dones = torch.empty((buffer_size, 1), dtype=torch.float, device=self.dev)
         self.next_states = torch.empty((buffer_size, state_shape), dtype=torch.float, device=self.dev)
 
-    def append(self, state, action, reward, done, next_state):
+    def append(self, state, action, reward, done, next_state, priority=None):
         stat = torch.from_numpy(state)
-        self.states[self._idx].copy_(torch.from_numpy(state))
-        self.actions[self._idx].copy_(torch.from_numpy(action))
-        self.rewards[self._idx] = float(reward)
-        self.dones[self._idx] = float(done)
-        self.next_states[self._idx].copy_(torch.from_numpy(next_state))
+        # self.states[self._idx].copy_(torch.from_numpy(state))
+        # self.actions[self._idx].copy_(torch.from_numpy(action))
+        # self.rewards[self._idx] = float(reward)
+        # self.dones[self._idx] = float(done)
+        # self.next_states[self._idx].copy_(torch.from_numpy(next_state))
+        state_ = torch.from_numpy(state)
+        act_ = torch.from_numpy(action)
+        n_state_ = torch.from_numpy(next_state)
+        self.buf.append(state_, act_, torch.Tensor([reward]), n_state_, is_state_terminal=done, priority=priority)
 
-        self._idx = (self._idx + 1) % self.buffer_size
-        self._size = min(self._size + 1, self.buffer_size)
+
+        # self._idx = (self._idx + 1) % self.buffer_size
+        # self._size = min(self._size + 1, self.buffer_size)
 
     def sample(self, batch_size):
-        indexes = np.random.randint(low=0, high=self._size, size=batch_size)
-        return (
-            self.states[indexes],
-            self.actions[indexes],
-            self.rewards[indexes],
-            self.dones[indexes],
-            self.next_states[indexes]
-        )
+        # indexes = np.random.randint(low=0, high=self._size, size=batch_size)
+        # return (
+        #     self.states[indexes],
+        #     self.actions[indexes],
+        #     self.rewards[indexes],
+        #     self.dones[indexes],
+        #     self.next_states[indexes]
+        # )
+        states, acts, rews, dones, n_states = [], [], [], [], []
+        # ans_ = self.buf.sample(1)
+        # print("buf ans {}".format(ans_))
+
+        for obs in self.buf.sample(batch_size):
+            states.append(obs[0]["state"])
+            acts.append(obs[0]["action"])
+            rews.append(obs[0]["reward"])
+            dones.append(torch.Tensor([float(obs[0]["is_state_terminal"])]))
+            n_states.append(obs[0]["next_state"])
+        states = torch.cat(states).reshape(len(states), *states[0].shape)
+        n_states = torch.cat(n_states).reshape(len(n_states), *n_states[0].shape)
+        acts = torch.cat(acts).reshape(len(acts), *acts[0].shape)
+        rews = torch.cat(rews).reshape(len(rews), *rews[0].shape)
+        dones = torch.cat(dones).reshape(len(dones), *dones[0].shape)
+        ans = (states, acts, rews, dones, n_states)
+        # print("buf ans {}".format(ans))
+        return ans
 
 
 
@@ -106,8 +131,8 @@ class Trainer:
         self.start_time = time()  # 学習開始の時間
         writer = SummaryWriter(log_dir="./logs")
         dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        writer.add_graph(self.algo.actor, torch.from_numpy(np.zeros(shape=(1, 96))).float().to(dev))
-        writer.add_graph(self.algo.critic, (torch.from_numpy(np.zeros(shape=(1, 96))).float().to(dev),
+        writer.add_graph(self.algo.actor, torch.from_numpy(np.zeros(shape=(1,32*4))).float().to(dev))
+        writer.add_graph(self.algo.critic, (torch.from_numpy(np.zeros(shape=(1, 32*4))).float().to(dev),
                          torch.from_numpy(np.zeros(shape=(1, 2))).float().to(dev)))
 
         t = 0  # エピソードのステップ数．
@@ -157,18 +182,6 @@ class Trainer:
               f'Time: {self.time}')
         self.env_test.generate_mp4()
         return ave_rew
-
-    # def visualize(self):
-    #     """ 1エピソード環境を動かし，mp4を再生する． """
-    #     env = wrap_monitor(gym.make(self.env.unwrapped.spec.id))
-    #     state = env.reset()
-    #     done = False
-    #
-    #     while not done:
-    #         action = self.algo.exploit(state)
-    #         state, rew, done, _ = env.step(action)
-    #         env.render()
-    #     del env
 
     def plot(self):
         """ 平均収益のグラフを描画する． """

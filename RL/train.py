@@ -25,11 +25,14 @@ print("state shape {}".format(*env.observation_space))
 print("action shape {}".format(env.action_space.shape))
 
 algo = SAC(
-    state_shape=96,
+    state_shape=env.state_shape,
     # state_shape=32,
     action_shape=env.action_space.shape,
     seed=SEED,
     reward_scale=REWARD_SCALE,
+    # start_steps=5 * 10 ** 3,
+    start_steps=5 * 10 ** 3,
+    batch_size=256,
 )
 
 trainer = Trainer(

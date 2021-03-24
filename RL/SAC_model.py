@@ -4,12 +4,7 @@ from algo import reparameterize
 import gym_donkeycar
 from env import MyEnv
 import gym
-import pfrl
 
-# exe_path = f"/home/emile/.local/lib/python3.9/site-packages/gym_donkeycar/DonkeySimLinux/donkey_sim.x86_64"
-# conf = {"exe_path": exe_path, "port": 9091}
-# env = gym.make("donkey-generated-track-v0", conf=conf)
-# env = MyEnv(env)
 
 class Flatten(nn.Module):
     def forward(self, inputs):
@@ -118,6 +113,7 @@ class ActorNetwork2(nn.Module):
         else:
             log_stds = torch.clip(log_stds, -20.0, 2.0)
             return reparameterize(means, log_stds)
+
 
 class ActorNetwork(nn.Module):
     def __init__(self, state_shape, action_shape):

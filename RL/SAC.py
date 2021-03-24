@@ -37,13 +37,10 @@ class SAC(Algorithm):
             state_shape=state_shape,
             action_shape=action_shape,
         )
-        # self.actor = ActorNetwork(state_shape, action_shape).to(self.dev)
-        # self.critic = CriticNetwork(state_shape, action_shape).to(self.dev)
         self.actor = ActorNetwork(state_shape, action_shape).to(self.dev)
         self.critic = CriticNetwork(state_shape, action_shape).to(self.dev)
 
     # Target Network を用いて学習を安定化させる.
-    #     self.critic_target = CriticNetwork(state_shape, action_shape).to(self.dev).eval()
         self.critic_target = CriticNetwork(state_shape, action_shape).to(self.dev).eval()
 
     # adjust entropy(\alpha)
@@ -76,25 +73,26 @@ class SAC(Algorithm):
         t += 1
         if steps <= self.start_steps:  # 最初はランダム.
             action = env.action_space.sample()
-            # print("action {}".format(action))
         else:
             action, _ = self.explore(state)
         n_state, rew, done, info = env.step(action)
         self.total_rew += rew
-        # print("rew is {}".format(rew))
-        # print("info is {}".format(info["cte"]))
-        # # done_masked = False if t == env._max_episode_steps else done  # 最大ステップ数に到達してdone=Trueになった場合を補正する.
-        # # self.buffer.append(state, action, rew, done_masked, n_state)  # add data to buffer
-        self.buffer.append(state, action, rew, done, n_state)  # add data to buffer
+        priority = self.actor_loss_func(torch.from_numpy(state).to(self.dev))[0].clone().detach()
+        # print("priori {}".format(priority))
+        self.buffer.append(state, action, rew, done, n_state, abs(priority))  # add data to buffer
         if done:  # エピソードが終了した場合には，環境をリセットする．
-            # print("total rew is {}".format(self.total_rew))
             t = 0
             n_state = env.reset()
             self.total_rew = 0.0
         return n_state, t
 
-    def update_critic(self, states, actions, rews, dones, n_states):
-        # (r(s,a) + \gamma V(s') - Q(s,a))^2 = (r(s,a) + \gamma {min[Q(s',a')] - \alpha \log \pi (a|s)} - Q(s,a))^2
+    def actor_loss_func(self, states):
+        acts, log_pis = self.actor.sample(states)
+        q1, q2 = self.critic(states, acts)
+        loss_actor = (self.alpha * log_pis - torch.min(q1, q2)).mean()
+        return loss_actor, log_pis
+
+    def critic_loss_func(self, states, actions, rews, dones, n_states):
         now_q1, now_q2 = self.critic(states, actions)
         with torch.no_grad():
             n_actions, log_pis = self.actor.sample(n_states, False)
@@ -105,6 +103,11 @@ class SAC(Algorithm):
         # loss funcs
         loss_c1 = (now_q1 - target_qs).pow_(2).mean()
         loss_c2 = (now_q2 - target_qs).pow_(2).mean()
+        return loss_c1, loss_c2
+
+    def update_critic(self, states, actions, rews, dones, n_states):
+        # (r(s,a) + \gamma V(s') - Q(s,a))^2 = (r(s,a) + \gamma {min[Q(s',a')] - \alpha \log \pi (a|s)} - Q(s,a))^2
+        loss_c1, loss_c2 = self.critic_loss_func(states, actions, rews, dones, n_states)
         # update
         self.optim_critic.zero_grad()
         (loss_c1 + loss_c2).backward(retain_graph=False)
@@ -113,9 +116,7 @@ class SAC(Algorithm):
         return loss_c1.clone().detach(), loss_c2.clone().detach()
 
     def update_actor(self, states):
-        acts, log_pis = self.actor.sample(states)
-        q1, q2 = self.critic(states, acts)
-        loss_actor = (self.alpha * log_pis - torch.min(q1, q2)).mean()
+        loss_actor, log_pis = self.actor_loss_func(states)
         # update
         self.optim_actor.zero_grad()
         loss_actor.backward(retain_graph=False)
