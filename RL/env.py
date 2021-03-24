@@ -16,7 +16,7 @@ class MyEnv:
         self.env = env_
         self.dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.action_space = env_.action_space
-        self._state_steps = 4
+        self._state_steps = 3
         self.observation_space = (80, 160, 3*self._state_steps)
         print("obs shape {}".format(self.observation_space))
         self.state_shape = 32*self._state_steps
@@ -50,7 +50,7 @@ class MyEnv:
                 break
         n_state_return = self.convert_state()  # state 生成
         rew = self.change_rew(rews/self._step_repeat_times, info)
-        if info["cte"] > 3.5:
+        if info["cte"] > 2.5:
             done = True
             rew = -1.0
         elif info["cte"] < -5.0:
@@ -62,9 +62,9 @@ class MyEnv:
         if info["speed"] < 0.0:
             return -0.6
         if abs(info["cte"]) < 1.0:
-            rew = 0.1 + info["speed"] / 100.0
+            rew = info["speed"] / 100.0
         else:
-            rew = -0.1
+            rew = -0.6
         return rew
 
     def reset(self):

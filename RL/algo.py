@@ -50,7 +50,7 @@ class ReplayBuffer:
         self._idx = 0  # 次にデータを挿入するインデックス．
         self._size = 0  # データ数．
         self.buffer_size = buffer_size  # リプレイバッファのサイズ．
-        self.buf = replay_buffers.PrioritizedReplayBuffer(capacity=self.buffer_size)
+        self.buf = replay_buffers.ReplayBuffer(capacity=self.buffer_size)
         self.dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.states = torch.empty((buffer_size, state_shape), dtype=torch.float, device=self.dev)
         self.actions = torch.empty((buffer_size, *action_shape), dtype=torch.float, device=self.dev)
@@ -68,9 +68,7 @@ class ReplayBuffer:
         state_ = torch.from_numpy(state)
         act_ = torch.from_numpy(action)
         n_state_ = torch.from_numpy(next_state)
-        self.buf.append(state_, act_, torch.Tensor([reward]), n_state_, is_state_terminal=done, priority=priority)
-
-
+        self.buf.append(state_, act_, torch.Tensor([reward]), n_state_, is_state_terminal=done)
         # self._idx = (self._idx + 1) % self.buffer_size
         # self._size = min(self._size + 1, self.buffer_size)
 
@@ -93,11 +91,11 @@ class ReplayBuffer:
             rews.append(obs[0]["reward"])
             dones.append(torch.Tensor([float(obs[0]["is_state_terminal"])]))
             n_states.append(obs[0]["next_state"])
-        states = torch.cat(states).reshape(len(states), *states[0].shape)
-        n_states = torch.cat(n_states).reshape(len(n_states), *n_states[0].shape)
-        acts = torch.cat(acts).reshape(len(acts), *acts[0].shape)
-        rews = torch.cat(rews).reshape(len(rews), *rews[0].shape)
-        dones = torch.cat(dones).reshape(len(dones), *dones[0].shape)
+        states = torch.cat(states).reshape(len(states), *states[0].shape).to(self.dev)
+        n_states = torch.cat(n_states).reshape(len(n_states), *n_states[0].shape).to(self.dev)
+        acts = torch.cat(acts).reshape(len(acts), *acts[0].shape).to(self.dev)
+        rews = torch.cat(rews).reshape(len(rews), *rews[0].shape).to(self.dev)
+        dones = torch.cat(dones).reshape(len(dones), *dones[0].shape).to(self.dev)
         ans = (states, acts, rews, dones, n_states)
         # print("buf ans {}".format(ans))
         return ans
@@ -131,8 +129,8 @@ class Trainer:
         self.start_time = time()  # 学習開始の時間
         writer = SummaryWriter(log_dir="./logs")
         dev = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        writer.add_graph(self.algo.actor, torch.from_numpy(np.zeros(shape=(1,32*4))).float().to(dev))
-        writer.add_graph(self.algo.critic, (torch.from_numpy(np.zeros(shape=(1, 32*4))).float().to(dev),
+        writer.add_graph(self.algo.actor, torch.from_numpy(np.zeros(shape=(1,32*3))).float().to(dev))
+        writer.add_graph(self.algo.critic, (torch.from_numpy(np.zeros(shape=(1, 32*3))).float().to(dev),
                          torch.from_numpy(np.zeros(shape=(1, 2))).float().to(dev)))
 
         t = 0  # エピソードのステップ数．

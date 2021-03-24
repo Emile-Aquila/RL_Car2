@@ -23,7 +23,7 @@ def show_state(state_np):
 class SAC(Algorithm):
     def __init__(self, state_shape, action_shape, seed=0,
                  batch_size=256, gamma=0.99, lr_actor=3e-4, lr_critic=3e-4, lr_alpha=3e-4,
-                 buffer_size=5 * 10 ** 3, start_steps=5 * 10 ** 3, tau=5e-3, min_alpha=0.05, reward_scale=1.0):
+                 buffer_size=5 * 10 ** 3, start_steps=5 * 10 ** 3, tau=5e-3, min_alpha=0.1, reward_scale=1.0):
                  #   buffer_size = 10 ** 4, start_steps = 3, tau = 5e-3, min_alpha = 0.05, reward_scale = 1.0):
         super().__init__()
 
@@ -77,9 +77,9 @@ class SAC(Algorithm):
             action, _ = self.explore(state)
         n_state, rew, done, info = env.step(action)
         self.total_rew += rew
-        priority = self.actor_loss_func(torch.from_numpy(state).to(self.dev))[0].clone().detach()
+        # priority = self.actor_loss_func(torch.from_numpy(state).to(self.dev))[0].clone().detach()
         # print("priori {}".format(priority))
-        self.buffer.append(state, action, rew, done, n_state, abs(priority))  # add data to buffer
+        self.buffer.append(state, action, rew, done, n_state)  # add data to buffer
         if done:  # エピソードが終了した場合には，環境をリセットする．
             t = 0
             n_state = env.reset()

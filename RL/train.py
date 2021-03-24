@@ -19,7 +19,7 @@ REWARD_SCALE = 1.0
 # NUM_STEPS = 5 * 10 ** 4
 NUM_STEPS = 3 * 10 ** 6
 # NUM_STEPS = 10**2
-EVAL_INTERVAL = 2 * 10 ** 3
+EVAL_INTERVAL = 2 * 10 ** 5
 
 print("state shape {}".format(*env.observation_space))
 print("action shape {}".format(env.action_space.shape))
@@ -31,7 +31,7 @@ algo = SAC(
     seed=SEED,
     reward_scale=REWARD_SCALE,
     # start_steps=5 * 10 ** 3,
-    start_steps=5 * 10 ** 3,
+    start_steps=5 * 10 ** 6,
     batch_size=256,
 )
 
